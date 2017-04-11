@@ -87,7 +87,7 @@ class MarkerDetector_impl: public MarkerDetector {
     inline bool measure(const cv::Mat &image, std::shared_ptr<Target> tg,
         DebugPlotConfig *dbg = NULL) {
       return tg->measured = measure(image, tg->outer, tg->inner, tg->heading,
-          tg->cx, tg->cy, tg->scale, tg->phi, tg->kappa, tg->black, tg->white,
+          tg->cx, tg->cy, tg->distance, tg->phi, tg->kappa, tg->black, tg->white,
           dbg);
     }
 

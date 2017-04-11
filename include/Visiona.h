@@ -88,7 +88,7 @@ class Target {
     bool measured; /**< if the accurate measurement step succeded **/
 
     // temporary, should become a rotation and a translation
-    double cx, cy, scale;
+    double cx, cy, distance;
     double phi, kappa;
 
     Target();
