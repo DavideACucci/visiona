@@ -1,8 +1,11 @@
 # visiona
 
-visiona is an optical target tracking library design to achieve best-possible precision and accuracy in relative position determination.
+Reference-style: 
+![concentric circle coded target used by visiona][https://github.com/DavideACucci/visiona/blob/master/target/target_raster.png]
 
-Some of the principles are described in details in the following publication:
+visiona is an optical coded target tracking library. It allows to precisely and accurately determine the relative position and orientation of a target with respect to a calibrated camera. 
+
+Some of the principles are described in details in the following publication, along with test results:
 
     @article{cucci2016accurate,
       AUTHOR = {Cucci, D. A.},
@@ -12,10 +15,10 @@ Some of the principles are described in details in the following publication:
       YEAR = {2016},
       PAGES = {257--262},
     }
-    
-## Status
 
-The library is functional and well performing in most of the 
+## Current Limitations
+
+The current implementation searches for a specific target whose code is known a-priori. The library is ready to detect and measure multiple different targets in the same image, but minor modifications to the code are required.
 
 ## Licence
 
