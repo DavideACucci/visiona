@@ -1,0 +1,36 @@
+\documentclass{article}
+
+%\usepackage[a0paper]{geometry}
+\usepackage{geometry}
+\geometry{a4paper}
+
+\usepackage{fullpage}
+
+\usepackage{tikz}
+\usepgflibrary{shapes}
+%\usetikzlibrary{shapes}
+%\usetikzlibrary{backgrounds,fit,shapes}
+%\usetikzlibrary{positioning}
+
+\pagenumbering{gobble}
+
+\begin{document}
+\begin{centering}
+%\begin{tikzpicture}
+% Centers the image coordinate system to the center of the page
+\begin{tikzpicture}[remember picture,overlay,shift={(current page.center)}]
+
+% Concentric circles
+\fill[black] (0,0) circle (5cm);  
+\fill[white] (0,0) circle (2cm);  
+ 
+% Code
+\fill[white] (3.5000, 0.0000) circle (0.5000cm);
+\fill[white] (0.0000, 3.5000) circle (0.5000cm);
+\fill[white] (-2.4749, 2.4749) circle (0.5000cm);
+\fill[white] (-1.7500, -3.0311) circle (0.5000cm);
+\fill[white] (3.0311, -1.7500) circle (0.5000cm);
+
+\end{tikzpicture}
+\end{centering}
+\end{document}
