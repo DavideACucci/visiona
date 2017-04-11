@@ -12,6 +12,8 @@ Some of the principles are described in details in the following (open-access) p
       PAGES = {257--262},
     }
 
+This software was developed within the scope of the mapKITE project, funded by the European Commission through the Horizon 2020 program. The copyright holder is the École polytechnique fédérale de Lausanne (EPFL).
+
 ## Target
 
 An example of the coded targets employed by visiona is reported below.
