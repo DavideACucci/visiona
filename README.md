@@ -28,6 +28,10 @@ A target example, ready to be printed and employed, can be generated with the [t
 
 ## Usage
 
+One should first include the main visiona headers:
+
+	#include "Visiona.h"
+
 To detect a target in an image, we first need to read the configuration file. Configuration file parsing is done via [libconfig](http://www.hyperrealm.com/libconfig ). Here is an example
 
 	MarkerDetectorConfig cfg;
@@ -47,20 +51,20 @@ where `raw` is an opencv Mat object. The current implementation searches for a s
 
 The returned `Target` objects accumulate the results of the detection and measurement steps.
 
-*Optional:* black/white levels can be accurately identified with. This improve pretty much everything that comes later.
+*Optional:* black/white levels can be accurately identified with. This improve pretty much everything that comes later. If this method is not called before measurements, 0 (black) vs 255 (black) levels are assumed, which is never the case.
 
-	d->evaluateExposure(raw, target);
+	detector->evaluateExposure(raw, target);
 
 Two main methods are available for target measurement. The first is based on the solution of the [PnP problem](https://en.wikipedia.org/wiki/Perspective-n-Point) using the code points. It is fast and suited for real-real time applications:
 
-	d->measureRough(raw, target);
+	detector->measureRough(raw, target);
 
 	translation = target.rought; // cv::Mat
 	orientation = target.roughR; // cv::Mat
 
 A more precise measurement of the target center and distance can be achieved with:
 
-	d->measure(raw, target);
+	detector->measure(raw, target);
 
 	distance = target.distance;
 	cv::Point2f center(target.cx, target.cy);
