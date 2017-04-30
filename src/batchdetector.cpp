@@ -44,11 +44,14 @@
 
 #include "opencv2/highgui/highgui.hpp"
 
+#include <libconfig.h++>
+
 #include "Visiona.h"
 #include "Timer.h"
 
 using namespace std;
 using namespace cv;
+using namespace libconfig;
 using namespace visiona;
 
 #define OPTPATHSET 1
@@ -58,7 +61,8 @@ using namespace visiona;
 #define OPTDEBUG 16
 #define OPTWAITKEYPRESS 32
 #define OPTSTOPAT 64
-#define OPTPREFIXSET 128 
+#define OPTPREFIXSET 128
+#define OPTSKIPDETECTION 256
 
 struct ImageDesc {
     string fileName;
@@ -73,6 +77,8 @@ struct ImageDesc {
     }
 };
 
+void loadCircle(const Setting &points, Circle &out);
+
 int main(int argc, char *argv[]) {
 
   // --------------------- parse command line arguments ------------------------
@@ -82,10 +88,10 @@ int main(int argc, char *argv[]) {
 
   unsigned int optionflag = 0;
 
-  char *imagePath, *imgext, *configpath, *prefix;
+  char *imagePath, *imgext, *configpath, *prefix, *detectioncfgpath;
   long int startFrom = 0, stopAt = -1, onlyFrame;
 
-  while ((c = getopt(argc, argv, "hc:p:e:s:t:o:wdf:")) != -1) {
+  while ((c = getopt(argc, argv, "hc:p:e:s:t:o:wdf:k:")) != -1) {
     switch (c) {
     case 'p':
 
@@ -116,7 +122,7 @@ int main(int argc, char *argv[]) {
       break;
     case 'h':
       cerr
-      << " * usage: batchdetector -p PATH -e EXT [-s STARTFRAME] [-w]"
+          << " * usage: batchdetector -p PATH -e EXT [-s START_FRAME] [-t STOP_FRAME] [-o ONLY_FRAME] [-w] -c CFG_FILE [-d] -f FILE_NAME_PREFIX"
           << endl;
       return 1;
     case 'c':
@@ -127,12 +133,17 @@ int main(int argc, char *argv[]) {
       optionflag |= OPTDEBUG;
       break;
     case 'f':
-      optionflag |= OPTPREFIXSET;
       prefix = optarg;
+      optionflag |= OPTPREFIXSET;
+      break;
+    case 'k':
+      detectioncfgpath = optarg;
+      optionflag |= OPTSKIPDETECTION;
       break;
     case '?':
       cerr << " * ERROR: unknown option or missing argument" << endl;
       return 1;
+
     default:
       abort();
     }
@@ -164,6 +175,32 @@ int main(int argc, char *argv[]) {
   }
 
   MarkerDetector *d = MarkerDetectorFactory::makeMarkerDetector(cfg);
+
+  shared_ptr<Target> tgfromcfg(new Target);
+
+  if (optionflag & OPTSKIPDETECTION) {
+    Config tgcfg;
+    try {
+      tgcfg.readFile(detectioncfgpath);
+    } catch (const FileIOException &fioex) {
+      cerr << " * ERROR: I/O error while reading " << detectioncfgpath << endl;
+      return false;
+    } catch (const ParseException &pex) {
+      cerr << " * ERROR: malformed cfg file at " << pex.getFile() << ":"
+          << pex.getLine() << " - " << pex.getError() << endl;
+      return false;
+    }
+
+    const Setting &root = tgcfg.getRoot();
+
+    tgfromcfg->detected = true;
+
+    loadCircle(root["OuterPoints"], tgfromcfg->outer);
+    loadCircle(root["InnerPoints"], tgfromcfg->inner);
+
+    tgfromcfg->heading = root["Heading"];
+
+  }
 
   // --------------------- generating image list -------------------------------
 
@@ -241,7 +278,7 @@ int main(int argc, char *argv[]) {
       dbg->windowName = "Debug";
 
       dbg->blitSubRegion = true;
-      dbg->blitRegionWidthMultiplier = 5.0;
+      dbg->blitRegionWidthMultiplier = 1.5;
 
       dbg->enabled = true;
       dbg->enableCirclesClusters = false;
@@ -262,8 +299,14 @@ int main(int argc, char *argv[]) {
 
     // --- real detection proces starts here
 
-    vector<shared_ptr<Target>> ret = d->detect(raw, dbg);
-    shared_ptr<Target> tg = ret[0];
+    shared_ptr<Target> tg;
+
+    if (optionflag & OPTSKIPDETECTION) {
+      tg = tgfromcfg;
+    } else {
+      vector<shared_ptr<Target>> ret = d->detect(raw, dbg);
+      tg = ret[0];
+    }
 
     if (tg->detected) {
       d->evaluateExposure(raw, tg, dbg);
@@ -290,17 +333,17 @@ int main(int argc, char *argv[]) {
 
     // TODO: introduce a flag to enable/disable this
 
-    if (ret[0]->roughlyMeasured) {
+    if (tg->roughlyMeasured) {
 
       for (int i = 0; i < cfg.markerSignalModel.size() / 2; ++i) {
-        double x = ret[0]->codePoints[i].x, y = ret[0]->codePoints[i].y;
+        double x = tg->codePoints[i].x, y = tg->codePoints[i].y;
 
         // convert to photogrammetry convention
         // TODO: put an option
         if (true) {
-          swap(x,y);
-          x = -(x - raw.rows/2.0)*4.7e-3;
-          y = -(y - raw.cols/2.0)*4.7e-3;
+          swap(x, y);
+          x = -(x - raw.rows / 2.0) * 4.7e-3;
+          y = -(y - raw.cols / 2.0) * 4.7e-3;
         }
 
         (*imf[i]) << it->fileName.substr(0, it->fileName.length() - 4) << " ";
@@ -315,4 +358,26 @@ int main(int argc, char *argv[]) {
   }
 
   return 0;
+}
+
+void loadCircle(const Setting &points, Circle &out) {
+
+  // TODO put some checks on the file structure
+
+  int N = points.getLength();
+
+  for (int i = 0; i < N; ++i) {
+    Point2f pt(points[i][0], points[i][1]);
+    out.cnt.push_back(pt);
+    out.center += pt;
+  }
+  out.center.x /= N;
+  out.center.y /= N;
+
+  for (auto it = out.cnt.begin(); it != out.cnt.end();
+      ++it) {
+    out.r += sqrt( pow(it->x - out.center.x, 2) + pow(it->y - out.center.y, 2));
+  }
+
+  out.r /= N;
 }

@@ -47,7 +47,7 @@ Circle::Circle(const Contour& cnt_in, const cv::Point2f &center_in, float r_in) 
     cnt(cnt_in), center(center_in), r(r_in) {
 }
 
-Circle::Circle() {
+Circle::Circle() : center(0,0), r(0) {
 }
 
 Target::Target() :
