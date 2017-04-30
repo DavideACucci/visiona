@@ -83,17 +83,7 @@ class MarkerDetector_impl: public MarkerDetector {
     bool detect(const cv::Mat &raw, Circle &outer, Circle &inner,
         float &heading, DebugPlotConfig *dbg = NULL);
 
-    // TODO: remove this wrapper method
-    inline bool measure(const cv::Mat &image, std::shared_ptr<Target> tg,
-        DebugPlotConfig *dbg = NULL) {
-      return tg->measured = measure(image, tg->outer, tg->inner, tg->heading,
-          tg->cx, tg->cy, tg->distance, tg->phi, tg->kappa, tg->black, tg->white,
-          dbg);
-    }
-
-    bool measure(const cv::Mat &raw, const Circle& outer, const Circle &inner,
-        float heading, double &cx, double &cy, double &scale, double &phi,
-        double &kappa, float black = 0.0, float white = 255.0,
+    bool measure(const cv::Mat &image, std::shared_ptr<Target> tg,
         DebugPlotConfig *dbg = NULL);
 
     inline bool measureRough(const cv::Mat &image, std::shared_ptr<Target> tg,

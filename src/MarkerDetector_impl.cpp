@@ -120,10 +120,14 @@ bool MarkerDetector_impl::detect(const cv::Mat &raw, Circle &outer,
   return found;
 }
 
-bool MarkerDetector_impl::measure(const Mat &image, const Circle& outer,
-    const Circle &inner, float heading, double &cx, double &cy, double &scale,
-    double &phi, double &kappa, float black, float white,
+bool MarkerDetector_impl::measure(const cv::Mat &image,
+    std::shared_ptr<Target> tg,
     DebugPlotConfig *dbg) {
+
+//bool MarkerDetector_impl::measure(const Mat &image, const Circle& outer,
+//    const Circle &inner, float heading, double &cx, double &cy, double &scale,
+//    double &phi, double &kappa, float black, float white,
+//    DebugPlotConfig *dbg) {
 
   if (dbg != NULL) {
     tic();
@@ -131,19 +135,21 @@ bool MarkerDetector_impl::measure(const Mat &image, const Circle& outer,
 
   // fit ellipses on the markers
   Ellipse outerElps, innerElps;
-  fitEllipse(outer.cnt, outerElps);
-  fitEllipse(inner.cnt, innerElps);
+  fitEllipse(tg->outer.cnt, outerElps);
+  fitEllipse(tg->inner.cnt, innerElps);
 
   // refine with subpixel
   vector<Point2f> outerElpsCntSubpx;
   vector<double> outerAngles;
-  refineEllipseCntWithSubpixelEdges(image, outerElps, true, heading, black,
-      white, 2, outerElpsCntSubpx, outerAngles);
+  refineEllipseCntWithSubpixelEdges(image, outerElps, true, tg->heading,
+      tg->black,
+      tg->white, 2, outerElpsCntSubpx, outerAngles);
 
   vector<Point2f> innerElpsCntSubpx;
   vector<double> innerAngles;
-  refineEllipseCntWithSubpixelEdges(image, innerElps, true, heading, black,
-      white, 2, innerElpsCntSubpx, innerAngles);
+  refineEllipseCntWithSubpixelEdges(image, innerElps, true, tg->heading,
+      tg->black,
+      tg->white, 2, innerElpsCntSubpx, innerAngles);
 
   // undistort ellipse points
   vector<Point2f> outerElpsCntSubpx_und;
@@ -176,23 +182,16 @@ bool MarkerDetector_impl::measure(const Mat &image, const Circle& outer,
       1e-2, center, 1e-8, 0);
 
   // compute distance
-  getPoseGivenCenter(outerPoly, center, _cfg.markerDiameter / 2.0, scale, phi,
-      kappa, dbg);
+  getPoseGivenCenter(outerPoly, center, _cfg.markerDiameter / 2.0, tg->distance,
+      tg->phi,
+      tg->kappa, dbg);
 
-  // get point/scale as in collinearity equations
+  // get the center in the distorted image
   center = distort(center);
+  tg->cx = center.x;
+  tg->cy = center.y;
 
-// accordind to the current reasoning scale = distance
-//  scale = scale
-//      / sqrt(
-//          pow(center.x- _cfg.K.at<double>(0, 2), 2)
-//              + pow(center.y - _cfg.K.at<double>(1, 2), 2)
-//              + pow(_cfg.K.at<double>(0, 0), 2))
-//      / 4.8e-6;
-  //*/
-
-  cx = center.x;
-  cy = center.y;
+  tg->measured = true;
 
   if (dbg != NULL) {
 
@@ -202,8 +201,8 @@ bool MarkerDetector_impl::measure(const Mat &image, const Circle& outer,
       float ratio;
       Point2i basept;
 
-      initZoomedSubregionSurface(outer.center,
-          outer.r * dbg->blitRegionWidthMultiplier,
+      initZoomedSubregionSurface(tg->outer.center,
+          tg->outer.r * dbg->blitRegionWidthMultiplier,
           dbg->rawImage, dbg->dbgImage, 1280, ratio, basept);
 
 //    circle(dbg->dbgImage, transformPoint(Point2f(cx, cy), basept, ratio),
@@ -228,8 +227,8 @@ bool MarkerDetector_impl::measure(const Mat &image, const Circle& outer,
       imshow(dbg->windowName, dbg->dbgImage);
       waitKey(1);
 
-      printf(" Center: (%.2f, %.2f), Distance: %.5f, Phi: %.5f, Kappa: %.5f\n",
-          cx, cy, scale, phi / M_PI * 180.0, kappa / M_PI * 180.0);
+//      printf(" Center: (%.2f, %.2f), Distance: %.5f, Phi: %.5f, Kappa: %.5f\n",
+//          tg->cx, tg->cy, tg->scale, tg->phi / M_PI * 180.0, tg->kappa / M_PI * 180.0);
 
       if (dbg->writeSubpixelContours) {
         outputContour(outerElpsCntSubpx, outerAngles, dbg->debugFilesPath,
@@ -334,21 +333,21 @@ void MarkerDetector_impl::detectEdges(const Mat& raw, Mat& edges,
   Mat tmp;
 
   // with canny
-   if (_cfg.CannyBlurKernelSize > 0) {
-   blur(raw, tmp, Size(_cfg.CannyBlurKernelSize, _cfg.CannyBlurKernelSize));
+  if (_cfg.CannyBlurKernelSize > 0) {
+    blur(raw, tmp, Size(_cfg.CannyBlurKernelSize, _cfg.CannyBlurKernelSize));
 
-   Canny(tmp, edges, _cfg.CannyLowerThreshold, _cfg.CannyHigherThreshold, 3,
-   true);
-   } else {
-   Canny(raw, edges, _cfg.CannyLowerThreshold, _cfg.CannyHigherThreshold, 3,
-   true);
-   }
-   //*/
+    Canny(tmp, edges, _cfg.CannyLowerThreshold, _cfg.CannyHigherThreshold, 3,
+        true);
+  } else {
+    Canny(raw, edges, _cfg.CannyLowerThreshold, _cfg.CannyHigherThreshold, 3,
+        true);
+  }
+  //*/
 
   /* with thresholding (single thread)
-  adaptiveThreshold(raw, edges, 255, ADAPTIVE_THRESH_MEAN_C,
-      THRESH_BINARY_INV, 15, 7);
-  //*/
+   adaptiveThreshold(raw, edges, 255, ADAPTIVE_THRESH_MEAN_C,
+   THRESH_BINARY_INV, 15, 7);
+   //*/
 
   /* parallel version, multithread
    parallelThreshold(raw, edges, 4);
@@ -1784,7 +1783,7 @@ bool MarkerDetector_impl::measureRough(const cv::Mat &image,
         for (int i = 0; i < tg->codePoints.size(); ++i) {
           circle(dbg->dbgImage,
               transformPoint(tg->codePoints[i], basept, ratio),
-              ratio * 2, Scalar(0, i*255.0/NPTS, 255), -1);
+              ratio * 2, Scalar(0, i * 255.0 / NPTS, 255), -1);
         }
 
         drawCube(dbg->dbgImage, tg->roughR, tg->rought,
