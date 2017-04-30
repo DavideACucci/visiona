@@ -333,7 +333,7 @@ void MarkerDetector_impl::detectEdges(const Mat& raw, Mat& edges,
 
   Mat tmp;
 
-  /* with canny
+  // with canny
    if (_cfg.CannyBlurKernelSize > 0) {
    blur(raw, tmp, Size(_cfg.CannyBlurKernelSize, _cfg.CannyBlurKernelSize));
 
@@ -345,7 +345,7 @@ void MarkerDetector_impl::detectEdges(const Mat& raw, Mat& edges,
    }
    //*/
 
-  // with thresholding (single thread)
+  /* with thresholding (single thread)
   adaptiveThreshold(raw, edges, 255, ADAPTIVE_THRESH_MEAN_C,
       THRESH_BINARY_INV, 15, 7);
   //*/
