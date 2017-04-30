@@ -141,15 +141,13 @@ bool MarkerDetector_impl::measure(const cv::Mat &image,
   // refine with subpixel
   vector<Point2f> outerElpsCntSubpx;
   vector<double> outerAngles;
-  refineEllipseCntWithSubpixelEdges(image, outerElps, true, tg->heading,
-      tg->black,
-      tg->white, 2, outerElpsCntSubpx, outerAngles);
+  refineEllipseCntWithSubpixelEdges(image, *tg, outerElps, true, 2,
+      outerElpsCntSubpx, outerAngles);
 
   vector<Point2f> innerElpsCntSubpx;
   vector<double> innerAngles;
-  refineEllipseCntWithSubpixelEdges(image, innerElps, true, tg->heading,
-      tg->black,
-      tg->white, 2, innerElpsCntSubpx, innerAngles);
+  refineEllipseCntWithSubpixelEdges(image, *tg, innerElps, true, 2,
+      innerElpsCntSubpx, innerAngles);
 
   // undistort ellipse points
   vector<Point2f> outerElpsCntSubpx_und;
@@ -183,8 +181,7 @@ bool MarkerDetector_impl::measure(const cv::Mat &image,
 
   // compute distance
   getPoseGivenCenter(outerPoly, center, _cfg.markerDiameter / 2.0, tg->distance,
-      tg->phi,
-      tg->kappa, dbg);
+      tg->phi, tg->kappa, dbg);
 
   // get the center in the distorted image
   center = distort(center);
@@ -1503,10 +1500,9 @@ void MarkerDetector_impl::subpixelEdgeWithLeastSquares(const cv::Mat &image,
 }
 
 void MarkerDetector_impl::refineEllipseCntWithSubpixelEdges(
-    const cv::Mat& image,
-    const Ellipse& elps, bool ignoreSignalAreas, float heading, float black,
-    float white, int N, vector<Point2f> &cnt, std::vector<double> &angles,
-    DebugPlotConfig* dbg) {
+    const cv::Mat &image, const Target &tg, const Ellipse &elps,
+    bool ignoreSignalAreas, int N, std::vector<cv::Point2f> &cnt,
+    std::vector<double> &angles, DebugPlotConfig *dbg) {
 
   EllipsePoly elpsPoly;
   getEllipsePolynomialCoeff(elps, elpsPoly);
@@ -1560,12 +1556,12 @@ void MarkerDetector_impl::refineEllipseCntWithSubpixelEdges(
       //      black, white - black, edge, N, dbg);
 
       // disable exposure hint
-      subpixelEdgeWithLeastSquares(image, elps, elpsPoly, heading + theta,
+      subpixelEdgeWithLeastSquares(image, elps, elpsPoly, tg.heading + theta,
           -1, -1, edge, N);
 
       if (!isnan(edge.x) && !isnan(edge.y)) {
         cnt.push_back(edge);
-        angles.push_back(heading + theta);
+        angles.push_back(tg.heading + theta);
       }
     }
 
