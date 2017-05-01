@@ -1762,19 +1762,17 @@ bool MarkerDetector_impl::measureRough(const cv::Mat &image,
 
     if (dbg->enabled && dbg->enableRoughMeasure) {
 
-      // new debug, no subregion
+      float ratio = 1.0;
+      Point2i basept(0, 0);
+      if (dbg->blitSubRegion) {
+        initZoomedSubregionSurface(tg->outer.center,
+            tg->outer.r * dbg->blitRegionWidthMultiplier, dbg->rawImage,
+            dbg->dbgImage, 1280, ratio, basept);
+      } else {
+        initColorPlotSurfacte(dbg->dbgImage, dbg);
+      }
+
       if (success & pointsFound) {
-
-        float ratio = 1.0;
-        Point2i basept(0, 0);
-
-        if (dbg->blitSubRegion) {
-          initZoomedSubregionSurface(tg->outer.center,
-              tg->outer.r * dbg->blitRegionWidthMultiplier, dbg->rawImage,
-              dbg->dbgImage, 1280, ratio, basept);
-        } else {
-          initColorPlotSurfacte(dbg->dbgImage, dbg);
-        }
 
         for (int i = 0; i < tg->codePoints.size(); ++i) {
           circle(dbg->dbgImage,
@@ -1786,67 +1784,13 @@ bool MarkerDetector_impl::measureRough(const cv::Mat &image,
             _cfg.markerDiameter * 1.5,
             Scalar(255, 0, 0),
             basept, ratio);
-
       }
-      //*/
 
-      /* old debug
-       float ratio;
-       Point2i basept;
-
-       vector<Point3f> toPlotWrold;
-       vector<Point2f> toPlotImg;
-
-       if (pointsFound && success) {
-       toPlotWrold.push_back(Point3f(0.0, 0.0, 0.0));
-       toPlotWrold.push_back(Point3f(_cfg.markerDiameter, 0.0, 0.0));
-       toPlotWrold.push_back(
-       Point3f(0.0, 0.0, -_cfg.markerDiameter));
-
-       projectPoints(toPlotWrold, R, t, _cfg.K, _cfg.distortion, toPlotImg);
-       float rinimg = sqrt(
-       pow(toPlotImg[0].x - toPlotImg[1].x, 2)
-       + pow(toPlotImg[0].y - toPlotImg[1].y, 2));
-
-       initZoomedSubregionSurface(toPlotImg[0],
-       rinimg * dbg->blitRegionWidthMultiplier,
-       dbg->rawImage, dbg->dbgImage, 1280, ratio, basept);
-       } else {
-       initZoomedSubregionSurface(outer.center,
-       outer.r * dbg->blitRegionWidthMultiplier, dbg->rawImage,
-       dbg->dbgImage, 1280, ratio, basept);
-       }
-
-       for (unsigned int i = 0; i < NPTS; i++) {
-       circle(dbg->dbgImage, transformPoint(seedPoints[i], basept, ratio),
-       ratio / 4.0, Scalar(0, 255, 0), -1);
-       }
-
-       for (unsigned int i = 0; i < outer.cnt.size(); ++i) {
-       circle(dbg->dbgImage, transformPoint(outer.cnt[i], basept, ratio),
-       0.25 * ratio, Scalar(0, 255, 0), -1);
-       }
-
-       if (pointsFound && success) {
-       for (unsigned int i = 0; i < NPTS; i++) {
-       circle(dbg->dbgImage, transformPoint(prj_points[i], basept, ratio),
-       ratio / 2.0, Scalar(0, 0, 255), -1);
-
-       circle(dbg->dbgImage, transformPoint(seedPoints[i], basept, ratio),
-       ratio / 4.0, Scalar(0, 255, 0), -1);
-
-       line(dbg->dbgImage, transformPoint(prj_points[i], basept, ratio),
-       transformPoint(tg->codePoints[i], basept, ratio), Scalar(255, 0, 0),
-       ratio / 4.0);
-
-       line(dbg->dbgImage, transformPoint(prj_points[i], basept, ratio),
-       transformPoint(toPlotImg[2], basept, ratio), Scalar(255, 0, 255),
-       ratio / 4.0);
-       }
-
-       cerr << "Rough distance: " << norm(t) << endl;
-       }
-       //*/
+      for (int i = 0; i < seedPoints.size(); ++i) {
+        circle(dbg->dbgImage,
+            transformPoint(seedPoints[i], basept, ratio),
+            ratio * 0.5, Scalar(i * 255.0 / NPTS, 255, 0), -1);
+      }
 
       imshow(dbg->windowName, dbg->dbgImage);
       waitKey(1);
