@@ -41,6 +41,7 @@
 
 #include <dirent.h>
 #include <unistd.h>
+#include <getopt.h>
 
 #include "opencv2/highgui/highgui.hpp"
 
@@ -83,15 +84,27 @@ int main(int argc, char *argv[]) {
 
   // --------------------- parse command line arguments ------------------------
 
-  opterr = 0;
-  int c;
+  static struct option long_options[] = {
+      {"path",required_argument, 0, 'p' },
+      {"ext", required_argument, 0, 'e' },
+      {"start-frame", required_argument, 0, 's' },
+      {"stop-frame", required_argument, 0, 't' },
+      {"only-frame", required_argument, 0, 'o' },
+      {"wait", no_argument, 0, 'w' },
+      {"config", required_argument, 0, 'c' },
+      {"debug", no_argument, 0, 'd' },
+      {"prefix", required_argument, 0, 'f' },
+      {"skip-detection", required_argument, 0, 'k' },
+      {0, 0, 0, 0}
+  };
 
   unsigned int optionflag = 0;
-
   char *imagePath, *imgext, *configpath, *prefix, *detectioncfgpath;
   long int startFrom = 0, stopAt = -1, onlyFrame;
 
-  while ((c = getopt(argc, argv, "hc:p:e:s:t:o:wdf:k:")) != -1) {
+  opterr = 0;
+  int c;
+  while ((c = getopt_long_only(argc, argv,"", long_options, NULL )) != -1) {
     switch (c) {
     case 'p':
 
@@ -120,11 +133,6 @@ int main(int argc, char *argv[]) {
     case 'w':
       optionflag |= OPTWAITKEYPRESS;
       break;
-    case 'h':
-      cerr
-          << " * usage: batchdetector -p PATH -e EXT [-s START_FRAME] [-t STOP_FRAME] [-o ONLY_FRAME] [-w] -c CFG_FILE [-d] -f FILE_NAME_PREFIX"
-          << endl;
-      return 1;
     case 'c':
       configpath = optarg;
       optionflag |= OPTCFGFILESET;
