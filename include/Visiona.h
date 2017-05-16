@@ -1,32 +1,32 @@
 /*******************************************************************************
-**
-** Copyright (C) 2015-2019 EPFL (Swiss Federal Institute of Technology)
-**
-** Contact:
-**   Dr. Davide A. Cucci, post-doctoral researcher
-**   E-mail: davide.cucci@epfl.ch
-**
-**   Geodetic Engineering Laboratory,
-**   1015 Lausanne, Switzerland (www.topo.epfl.ch).
-**
-**
-**
-**   This file is part of visiona.
-**
-**   visiona is free software: you can redistribute it and/or modify
-**   it under the terms of the GNU General Public License as published by
-**   the Free Software Foundation, either version 3 of the License, or
-**   (at your option) any later version.
-**
-**   visiona is distributed in the hope that it will be useful,
-**   but WITHOUT ANY WARRANTY; without even the implied warranty of
-**   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-**   GNU General Public License for more details.
-**
-**   You should have received a copy of the GNU General Public License
-**   along with visiona.  If not, see <http://www.gnu.org/licenses/>.
-**
-*******************************************************************************/
+ **
+ ** Copyright (C) 2015-2019 EPFL (Swiss Federal Institute of Technology)
+ **
+ ** Contact:
+ **   Dr. Davide A. Cucci, post-doctoral researcher
+ **   E-mail: davide.cucci@epfl.ch
+ **
+ **   Geodetic Engineering Laboratory,
+ **   1015 Lausanne, Switzerland (www.topo.epfl.ch).
+ **
+ **
+ **
+ **   This file is part of visiona.
+ **
+ **   visiona is free software: you can redistribute it and/or modify
+ **   it under the terms of the GNU General Public License as published by
+ **   the Free Software Foundation, either version 3 of the License, or
+ **   (at your option) any later version.
+ **
+ **   visiona is distributed in the hope that it will be useful,
+ **   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ **   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ **   GNU General Public License for more details.
+ **
+ **   You should have received a copy of the GNU General Public License
+ **   along with visiona.  If not, see <http://www.gnu.org/licenses/>.
+ **
+ *******************************************************************************/
 
 /*
  * Visiona.h
@@ -107,7 +107,8 @@ class MarkerDetector {
      *
      * return A vector containing the targets found (currently only one is returned)
      */
-    virtual std::vector<std::shared_ptr<Target>> detect(const cv::Mat &image, DebugPlotConfig *dbg = NULL) = 0;
+    virtual std::vector<std::shared_ptr<Target>> detect(const cv::Mat &image,
+        DebugPlotConfig *dbg = NULL) = 0;
 
     /**
      * \brief given an already detected target, determines value for the black and white levels
@@ -122,9 +123,12 @@ class MarkerDetector {
      * \brief roughly measures the target based on the center of the white circles forming the code
      *
      * param tg the detected target
+     * param seedPoints forces to use the provided set of ordered bubble positions instead of a prediction based on the heading
      * param dbg the debug configuration, default, NO
      */
-    virtual bool measureRough(const cv::Mat &image, std::shared_ptr<Target> tg, DebugPlotConfig *dbg = NULL) = 0;
+    virtual bool measureRough(const cv::Mat &image, std::shared_ptr<Target> tg,
+        std::vector<cv::Point2f> *seedPoints = NULL,
+        DebugPlotConfig *dbg = NULL) = 0;
 
     /**
      * \brief measures accurately the target based on the concentric circle algorithm
@@ -132,8 +136,8 @@ class MarkerDetector {
      * param tg the detected target
      * param dbg the debug configuration, default, NO
      */
-    virtual bool measure(const cv::Mat &image, std::shared_ptr<Target> tg, DebugPlotConfig *dbg = NULL) = 0;
-
+    virtual bool measure(const cv::Mat &image, std::shared_ptr<Target> tg,
+        DebugPlotConfig *dbg = NULL) = 0;
 
     MarkerDetector(const MarkerDetectorConfig &cfg) :
         _cfg(cfg) {

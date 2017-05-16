@@ -52,6 +52,32 @@ namespace visiona {
 
 MarkerDetector_impl::MarkerDetector_impl(const MarkerDetectorConfig &cfg) :
     MarkerDetector(cfg) {
+
+  for (int cnt = 0; cnt < _cfg.markerSignalModel.size() / 2; ++cnt) {
+    int i = (_cfg.markerSignalStartsWith == 1.0 ? 0 : 1) + 2 * cnt;
+
+    float maxAngle, minAngle, angle;
+
+    if (i == 0) {
+      minAngle = 2 * M_PI
+          * (_cfg.markerSignalModel[_cfg.markerSignalModel.size() - 1] - 1);
+    } else {
+      minAngle = 2 * M_PI * _cfg.markerSignalModel[i - 1];
+    }
+
+    maxAngle = 2 * M_PI * _cfg.markerSignalModel[i];
+
+    angle = 0.5 * (maxAngle + minAngle);
+
+    Point3f wp;
+    wp.x = cos(angle);
+    wp.y = sin(angle);
+    wp.z = 0.0;
+    wp *= _cfg.markerDiameter * _cfg.markerSignalRadiusPercentage / 2.0;
+
+    _worldPoints.push_back(wp);
+  }
+
 }
 
 bool MarkerDetector_impl::detect(const cv::Mat &raw, Circle &outer,
@@ -1587,7 +1613,8 @@ void MarkerDetector_impl::refineEllipseCntWithSubpixelEdges(
 }
 
 bool MarkerDetector_impl::measureRough(const cv::Mat &image,
-    std::shared_ptr<Target> tg, DebugPlotConfig *dbg) {
+    std::shared_ptr<Target> tg, vector<Point2f> *seedPoints,
+    DebugPlotConfig *dbg) {
 
   if (!tg->detected) {
     return false;
@@ -1601,63 +1628,60 @@ bool MarkerDetector_impl::measureRough(const cv::Mat &image,
   bool success = true;
 
   // check and eventually allocate mask
-  if (floodfillMask.rows != image.rows + 2
-      || floodfillMask.cols != image.cols + 2) {
-    floodfillMask = Mat::zeros(image.rows + 2, image.cols + 2, CV_8UC1);
+  if (_floodfillMask.rows != image.rows + 2
+      || _floodfillMask.cols != image.cols + 2) {
+    _floodfillMask = Mat::zeros(image.rows + 2, image.cols + 2, CV_8UC1);
   }
 
   // color the mask so floodfill cannot surpass the outer circle
   for (auto it = tg->outer.cnt.begin(); it != tg->outer.cnt.end(); ++it) {
-    floodfillMask.at<unsigned char>(it->y + 1, it->x + 1) = 255;
+    _floodfillMask.at<unsigned char>(it->y + 1, it->x + 1) = 255;
   }
 
   // get the seed points for the floodfill and the true world points
   Ellipse outerElps;
   fitEllipse(tg->outer.cnt, outerElps);
 
-  vector<Point3f> worldPoints;
-  vector<Point2f> seedPoints;
-  vector<Point2f> prj_points;
+  // generate or validate seedpoints
+  const unsigned int NPTS = _worldPoints.size();
 
-  for (int cnt = 0; cnt < _cfg.markerSignalModel.size() / 2; ++cnt) {
-    int i = (_cfg.markerSignalStartsWith == 1.0 ? 0 : 1) + 2 * cnt;
+  if (seedPoints == NULL) {
+    seedPoints = new vector<Point2f>;
 
-    float maxAngle, minAngle, angle;
+    for (int cnt = 0; cnt < _cfg.markerSignalModel.size() / 2; ++cnt) {
+      int i = (_cfg.markerSignalStartsWith == 1.0 ? 0 : 1) + 2 * cnt;
 
-    if (i == 0) {
-      minAngle = 2 * M_PI
-          * (_cfg.markerSignalModel[_cfg.markerSignalModel.size() - 1] - 1);
-    } else {
-      minAngle = 2 * M_PI * _cfg.markerSignalModel[i - 1];
+      float maxAngle, minAngle, angle;
+
+      if (i == 0) {
+        minAngle = 2 * M_PI
+            * (_cfg.markerSignalModel[_cfg.markerSignalModel.size() - 1] - 1);
+      } else {
+        minAngle = 2 * M_PI * _cfg.markerSignalModel[i - 1];
+      }
+
+      maxAngle = 2 * M_PI * _cfg.markerSignalModel[i];
+      angle = 0.5 * (maxAngle + minAngle);
+
+      seedPoints->push_back(
+          evalEllipse(angle + tg->heading, outerElps.center,
+              outerElps.size.width / 2.0 * _cfg.markerSignalRadiusPercentage,
+              outerElps.size.height / 2.0 * _cfg.markerSignalRadiusPercentage,
+              outerElps.angle * M_PI / 180.0));
     }
-
-    maxAngle = 2 * M_PI * _cfg.markerSignalModel[i];
-
-    angle = 0.5 * (maxAngle + minAngle);
-
-    seedPoints.push_back(
-        evalEllipse(angle + tg->heading, outerElps.center,
-            outerElps.size.width / 2.0 * _cfg.markerSignalRadiusPercentage,
-            outerElps.size.height / 2.0 * _cfg.markerSignalRadiusPercentage,
-            outerElps.angle * M_PI / 180.0));
-
-    Point3f wp;
-    wp.x = cos(angle);
-    wp.y = sin(angle);
-    wp.z = 0.0;
-    wp *= _cfg.markerDiameter * _cfg.markerSignalRadiusPercentage / 2.0;
-
-    worldPoints.push_back(wp);
+  } else {
+    if (seedPoints->size() != NPTS) {
+      cerr << "ERROR: not enough or too much seedpoints provided" << endl;
+      assert(false);
+    }
   }
-
-  const unsigned int NPTS = seedPoints.size();
 
   // floodfill and mask exploration to compute centroids
   Rect bounds[NPTS];
   int times = floor(253 / NPTS);
 
   for (int i = 0; i < NPTS; ++i) {
-    floodFill(image, floodfillMask, seedPoints[i], 255, &(bounds[i]),
+    floodFill(image, _floodfillMask, (*seedPoints)[i], 255, &(bounds[i]),
         (tg->white - tg->black) * 0.4,
         255,
         4 | ((2 + i * times) << 8) | CV_FLOODFILL_FIXED_RANGE
@@ -1680,11 +1704,12 @@ bool MarkerDetector_impl::measureRough(const cv::Mat &image,
           ++x) {
         for (unsigned int y = bounds[i].y;
             y <= bounds[i].y + bounds[i].height - 1; ++y) {
-          unsigned char maskval = floodfillMask.at<unsigned char>(y + 1, x + 1);
+          unsigned char maskval = _floodfillMask.at<unsigned char>(y + 1,
+              x + 1);
 
           if ((maskval - 2) / times == i) {
             // clear this mask point
-            floodfillMask.at<unsigned char>(y + 1, x + 1) = 0;
+            _floodfillMask.at<unsigned char>(y + 1, x + 1) = 0;
 
             // weighted average
             cnt[i] += image.at<unsigned char>(y, x);
@@ -1709,10 +1734,11 @@ bool MarkerDetector_impl::measureRough(const cv::Mat &image,
 
   // un-color the mask so floodfill cannot surpass the outer circle
   for (auto it = tg->outer.cnt.begin(); it != tg->outer.cnt.end(); ++it) {
-    floodfillMask.at<unsigned char>(it->y + 1, it->x + 1) = 0;
+    _floodfillMask.at<unsigned char>(it->y + 1, it->x + 1) = 0;
   }
-
   //*/
+
+  vector<Point2f> prj_points;
 
   if (pointsFound) {
     for (unsigned int i = 0; i < NPTS; ++i) {
@@ -1722,13 +1748,13 @@ bool MarkerDetector_impl::measureRough(const cv::Mat &image,
 
     // solve the PnP problem
     Mat rod;
-    solvePnP(worldPoints, tg->codePoints, _cfg.K, _cfg.distortion, rod,
+    solvePnP(_worldPoints, tg->codePoints, _cfg.K, _cfg.distortion, rod,
         tg->rought);
     Rodrigues(rod, tg->roughR);
 
     // reproject points and compute error
 
-    projectPoints(worldPoints, rod, tg->rought, _cfg.K, _cfg.distortion,
+    projectPoints(_worldPoints, rod, tg->rought, _cfg.K, _cfg.distortion,
         prj_points);
 
     tg->meanReprojectionError = 0;
@@ -1774,7 +1800,7 @@ bool MarkerDetector_impl::measureRough(const cv::Mat &image,
 
       if (success & pointsFound) {
 
-        for (int i = 0; i < tg->codePoints.size(); ++i) {
+        for (int i = 0; i < NPTS; ++i) {
           circle(dbg->dbgImage,
               transformPoint(tg->codePoints[i], basept, ratio),
               ratio * 2, Scalar(0, i * 255.0 / NPTS, 255), -1);
@@ -1786,9 +1812,9 @@ bool MarkerDetector_impl::measureRough(const cv::Mat &image,
             basept, ratio);
       }
 
-      for (int i = 0; i < seedPoints.size(); ++i) {
+      for (int i = 0; i < NPTS; ++i) {
         circle(dbg->dbgImage,
-            transformPoint(seedPoints[i], basept, ratio),
+            transformPoint((*seedPoints)[i], basept, ratio),
             ratio * 0.5, Scalar(i * 255.0 / NPTS, 255, 0), -1);
       }
 

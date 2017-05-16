@@ -64,7 +64,8 @@ class MarkerDetector_impl: public MarkerDetector {
         std::vector<int> circleIds;
     };
 
-    cv::Mat floodfillMask;
+    cv::Mat _floodfillMask;
+    std::vector<cv::Point3f> _worldPoints;
 
     MarkerDetector_impl(const MarkerDetectorConfig &cfg);
 
@@ -87,6 +88,7 @@ class MarkerDetector_impl: public MarkerDetector {
         DebugPlotConfig *dbg = NULL);
 
     inline bool measureRough(const cv::Mat &image, std::shared_ptr<Target> tg,
+        std::vector<cv::Point2f> *seedPoints = NULL,
         DebugPlotConfig *dbg = NULL);
 
     // TODO: remove this wrapper method

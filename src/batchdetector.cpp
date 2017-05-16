@@ -311,7 +311,7 @@ int main(int argc, char *argv[]) {
     if (tg->detected) {
       d->evaluateExposure(raw, tg, dbg);
 
-      d->measureRough(raw, tg, dbg);
+      d->measureRough(raw, tg, NULL, dbg);
 
       d->measure(raw, tg, dbg);
     }
