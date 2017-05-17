@@ -88,7 +88,6 @@ class MarkerDetector_impl: public MarkerDetector {
         DebugPlotConfig *dbg = NULL);
 
     inline bool measureRough(const cv::Mat &image, std::shared_ptr<Target> tg,
-        std::vector<cv::Point2f> *seedPoints = NULL,
         DebugPlotConfig *dbg = NULL);
 
     // TODO: remove this wrapper method

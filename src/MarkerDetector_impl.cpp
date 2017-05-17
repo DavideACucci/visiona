@@ -1613,8 +1613,7 @@ void MarkerDetector_impl::refineEllipseCntWithSubpixelEdges(
 }
 
 bool MarkerDetector_impl::measureRough(const cv::Mat &image,
-    std::shared_ptr<Target> tg, vector<Point2f> *seedPoints,
-    DebugPlotConfig *dbg) {
+    std::shared_ptr<Target> tg, DebugPlotConfig *dbg) {
 
   if (!tg->detected) {
     return false;
@@ -1638,15 +1637,13 @@ bool MarkerDetector_impl::measureRough(const cv::Mat &image,
     _floodfillMask.at<unsigned char>(it->y + 1, it->x + 1) = 255;
   }
 
-  // get the seed points for the floodfill and the true world points
-  Ellipse outerElps;
-  fitEllipse(tg->outer.cnt, outerElps);
-
   // generate or validate seedpoints
   const unsigned int NPTS = _worldPoints.size();
 
-  if (seedPoints == NULL) {
-    seedPoints = new vector<Point2f>;
+  if (tg->seedPoints.empty()) {
+    // get the seed points for the floodfill and the true world points
+    Ellipse outerElps;
+    fitEllipse(tg->outer.cnt, outerElps);
 
     for (int cnt = 0; cnt < _cfg.markerSignalModel.size() / 2; ++cnt) {
       int i = (_cfg.markerSignalStartsWith == 1.0 ? 0 : 1) + 2 * cnt;
@@ -1663,14 +1660,14 @@ bool MarkerDetector_impl::measureRough(const cv::Mat &image,
       maxAngle = 2 * M_PI * _cfg.markerSignalModel[i];
       angle = 0.5 * (maxAngle + minAngle);
 
-      seedPoints->push_back(
+      tg->seedPoints.push_back(
           evalEllipse(angle + tg->heading, outerElps.center,
               outerElps.size.width / 2.0 * _cfg.markerSignalRadiusPercentage,
               outerElps.size.height / 2.0 * _cfg.markerSignalRadiusPercentage,
               outerElps.angle * M_PI / 180.0));
     }
   } else {
-    if (seedPoints->size() != NPTS) {
+    if (tg->seedPoints.size() != NPTS) {
       cerr << "ERROR: not enough or too much seedpoints provided" << endl;
       assert(false);
     }
@@ -1681,7 +1678,7 @@ bool MarkerDetector_impl::measureRough(const cv::Mat &image,
   int times = floor(253 / NPTS);
 
   for (int i = 0; i < NPTS; ++i) {
-    floodFill(image, _floodfillMask, (*seedPoints)[i], 255, &(bounds[i]),
+    floodFill(image, _floodfillMask, tg->seedPoints[i], 255, &(bounds[i]),
         (tg->white - tg->black) * 0.4,
         255,
         4 | ((2 + i * times) << 8) | CV_FLOODFILL_FIXED_RANGE
@@ -1814,8 +1811,8 @@ bool MarkerDetector_impl::measureRough(const cv::Mat &image,
 
       for (int i = 0; i < NPTS; ++i) {
         circle(dbg->dbgImage,
-            transformPoint((*seedPoints)[i], basept, ratio),
-            ratio * 0.5, Scalar(i * 255.0 / NPTS, 255, 0), -1);
+            transformPoint(tg->seedPoints[i], basept, ratio),
+            ratio * 0.5, Scalar(i * 255.0 / NPTS, 0, 0), -1);
       }
 
       imshow(dbg->windowName, dbg->dbgImage);

@@ -48,7 +48,7 @@
 
 namespace visiona {
 
-typedef std::vector<cv::Point> Contour;
+typedef std::vector<cv::Point2i> Contour;
 
 /**
  * Circle approximation of a contour
@@ -80,6 +80,7 @@ class Target {
 
     // measure-rough stage;
     bool roughlyMeasured; /**< if the rough measurement succeded **/
+    std::vector<cv::Point2f> seedPoints; /**< seed points for the precise location of code dots **/
     std::vector<cv::Point2f> codePoints; /**< image measurements for the white dots used in PnP **/
     cv::Mat roughR, rought; /**< rotation and translation from camera to target **/
     double meanReprojectionError; /**< mean reprojection error of codePoints after PnP **/
@@ -126,9 +127,7 @@ class MarkerDetector {
      * param seedPoints forces to use the provided set of ordered bubble positions instead of a prediction based on the heading
      * param dbg the debug configuration, default, NO
      */
-    virtual bool measureRough(const cv::Mat &image, std::shared_ptr<Target> tg,
-        std::vector<cv::Point2f> *seedPoints = NULL,
-        DebugPlotConfig *dbg = NULL) = 0;
+    virtual bool measureRough(const cv::Mat &image, std::shared_ptr<Target> tg, DebugPlotConfig *dbg = NULL) = 0;
 
     /**
      * \brief measures accurately the target based on the concentric circle algorithm

@@ -64,6 +64,7 @@ using namespace visiona;
 #define OPTSTOPAT 64
 #define OPTPREFIXSET 128
 #define OPTSKIPDETECTION 256
+#define OPTUSESEEDPOINTS 512
 
 struct ImageDesc {
     string fileName;
@@ -80,31 +81,41 @@ struct ImageDesc {
 
 void loadCircle(const Setting &points, Circle &out);
 
+template<typename PointType>
+void load2DPointVector(const Setting &points, vector<PointType> &v) {
+  int N = points.getLength();
+  for (int i = 0; i < N; ++i) {
+    PointType pt(points[i][0], points[i][1]);
+    v.push_back(pt);
+  }
+}
+
 int main(int argc, char *argv[]) {
 
   // --------------------- parse command line arguments ------------------------
 
   static struct option long_options[] = {
-      {"path",required_argument, 0, 'p' },
-      {"ext", required_argument, 0, 'e' },
-      {"start-frame", required_argument, 0, 's' },
-      {"stop-frame", required_argument, 0, 't' },
-      {"only-frame", required_argument, 0, 'o' },
-      {"wait", no_argument, 0, 'w' },
-      {"config", required_argument, 0, 'c' },
-      {"debug", no_argument, 0, 'd' },
-      {"prefix", required_argument, 0, 'f' },
-      {"skip-detection", required_argument, 0, 'k' },
-      {0, 0, 0, 0}
+      { "path", required_argument, 0, 'p' },
+      { "ext", required_argument, 0, 'e' },
+      { "start-frame", required_argument, 0, 's' },
+      { "stop-frame", required_argument, 0, 't' },
+      { "only-frame", required_argument, 0, 'o' },
+      { "wait", no_argument, 0, 'w' },
+      { "config", required_argument, 0, 'c' },
+      { "debug", no_argument, 0, 'd' },
+      { "prefix", required_argument, 0, 'f' },
+      { "skip-detection", required_argument, 0, 'k' },
+      { 0, 0, 0, 0 }
   };
 
   unsigned int optionflag = 0;
-  char *imagePath, *imgext, *configpath, *prefix, *detectioncfgpath;
+  char *imagePath, *imgext, *configpath, *prefix, *detectioncfgpath,
+      *seedpointspath;
   long int startFrom = 0, stopAt = -1, onlyFrame;
 
   opterr = 0;
   int c;
-  while ((c = getopt_long_only(argc, argv,"", long_options, NULL )) != -1) {
+  while ((c = getopt_long_only(argc, argv, "", long_options, NULL)) != -1) {
     switch (c) {
     case 'p':
 
@@ -187,9 +198,9 @@ int main(int argc, char *argv[]) {
   shared_ptr<Target> tgfromcfg(new Target);
 
   if (optionflag & OPTSKIPDETECTION) {
-    Config tgcfg;
+    Config cfgfile;
     try {
-      tgcfg.readFile(detectioncfgpath);
+      cfgfile.readFile(detectioncfgpath);
     } catch (const FileIOException &fioex) {
       cerr << " * ERROR: I/O error while reading " << detectioncfgpath << endl;
       return false;
@@ -199,15 +210,13 @@ int main(int argc, char *argv[]) {
       return false;
     }
 
-    const Setting &root = tgcfg.getRoot();
+    const Setting &root = cfgfile.getRoot();
 
     tgfromcfg->detected = true;
 
     loadCircle(root["OuterPoints"], tgfromcfg->outer);
     loadCircle(root["InnerPoints"], tgfromcfg->inner);
-
-    tgfromcfg->heading = root["Heading"];
-
+    load2DPointVector(root["SeedPoints"], tgfromcfg->seedPoints);
   }
 
   // --------------------- generating image list -------------------------------
@@ -274,7 +283,7 @@ int main(int argc, char *argv[]) {
 
     string imgName = imagePath + string("/") + it->fileName;
 
-    cv::Mat raw = imread(imgName, CV_LOAD_IMAGE_GRAYSCALE);
+    Mat raw = imread(imgName, CV_LOAD_IMAGE_GRAYSCALE);
 
     DebugPlotConfig *dbg = NULL;
 
@@ -286,14 +295,14 @@ int main(int argc, char *argv[]) {
       dbg->windowName = "Debug";
 
       dbg->blitSubRegion = true;
-      dbg->blitRegionWidthMultiplier = 1.5;
+      dbg->blitRegionWidthMultiplier = 3.0;
 
       dbg->enabled = true;
       dbg->enableCirclesClusters = false;
       dbg->enableSelectedTargets = false;
       dbg->enableEsposure = false;
-      dbg->enableRoughMeasure = true;
-      dbg->enableSubPixelEllipses = false;
+      dbg->enableRoughMeasure = false;
+      dbg->enableSubPixelEllipses = true;
 
       dbg->frameNumber = it->frameNumber;
       dbg->writeContours = true;
@@ -319,7 +328,7 @@ int main(int argc, char *argv[]) {
     if (tg->detected) {
       d->evaluateExposure(raw, tg, dbg);
 
-      d->measureRough(raw, tg, NULL, dbg);
+      d->measureRough(raw, tg, dbg);
 
       d->measure(raw, tg, dbg);
     }
@@ -369,9 +378,6 @@ int main(int argc, char *argv[]) {
 }
 
 void loadCircle(const Setting &points, Circle &out) {
-
-  // TODO put some checks on the file structure
-
   int N = points.getLength();
 
   for (int i = 0; i < N; ++i) {
@@ -384,8 +390,9 @@ void loadCircle(const Setting &points, Circle &out) {
 
   for (auto it = out.cnt.begin(); it != out.cnt.end();
       ++it) {
-    out.r += sqrt( pow(it->x - out.center.x, 2) + pow(it->y - out.center.y, 2));
+    out.r += sqrt(pow(it->x - out.center.x, 2) + pow(it->y - out.center.y, 2));
   }
 
   out.r /= N;
 }
+
