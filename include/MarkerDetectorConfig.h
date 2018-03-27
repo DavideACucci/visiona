@@ -38,6 +38,7 @@
 #ifndef MARKERDETECTORCONFIG_H_
 #define MARKERDETECTORCONFIG_H_
 
+#include <iostream>
 #include <opencv/cv.h>
 #include <libconfig.h++>
 

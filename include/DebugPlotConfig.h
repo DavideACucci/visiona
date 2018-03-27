@@ -38,8 +38,9 @@
 #ifndef DEBUGPLOTCONFIG_H_
 #define DEBUGPLOTCONFIG_H_
 
+#include <iomanip>
 #include <string>
-#include <opencv/cv.h>
+#include <opencv/cv.hpp>
 
 namespace visiona {
 
