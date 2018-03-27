@@ -1314,7 +1314,7 @@ void MarkerDetector_impl::buildCircleHolesImage(const EllipsePoly& elps,
   }
 
   ofstream f(fname);
-  f << cv::format(img, "csv") << std::endl;
+  f << cv::format(img, Formatter::FMT_CSV) << std::endl;
   f.close();
 
 }

@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 2.8)
 project(detect)
 
 ## dependencies
+find_package( OpenCV REQUIRED )
+include_directories( ${OpenCV_INCLUDE_DIRS} )
 
 include_directories(/usr/include/eigen3)
 
