@@ -39,7 +39,7 @@
 #define MARKERDETECTORCONFIG_H_
 
 #include <iostream>
-#include <opencv/cv.h>
+#include <opencv/cv.hpp>
 #include <libconfig.h++>
 
 namespace visiona {

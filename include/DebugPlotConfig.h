@@ -40,7 +40,7 @@
 
 #include <iomanip>
 #include <string>
-#include <opencv/cv.hpp>
+#include <opencv/cv.h>
 
 namespace visiona {
 
